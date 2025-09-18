@@ -1,0 +1,122 @@
+name: Build Khaenriah Kernel 📈
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Building Khaenriah Kernel for RMX1971
+    runs-on: ubuntu-22.04
+    env:
+      TZ: Africa/Cairo
+      CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
+      CCACHE_NOHASHDIR: "true"
+      CCACHE_MAXSIZE: "2G"
+      CCACHE_HARDLINK: "true"
+      KERNEL_DEFCONFIG: sdm670-perf_defconfig
+      ANYKERNEL_REPO: https://github.com/dain09/AnyKernel3
+      ANYKERNEL_BRANCH: suki
+
+    steps:
+    - name: Checkout Kernel Source
+      uses: actions/checkout@v4
+      with:
+        submodules: 'true'
+        fetch-depth: 0
+
+    - name: Set up ccache
+      uses: hendrikmuhs/ccache-action@v1.2
+    
+    - name: Install Build Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+             gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi \
+             binutils make python3 libssl-dev build-essential bc bison flex \
+             zip unzip ca-certificates xz-utils android-tools-mkbootimg cpio \
+             device-tree-compiler git git-lfs curl
+
+    - name: Download and Extract Clang Toolchain
+      run: |
+        curl -LSs -o Clang-13.0.1.tar.gz "https://github.com/ZyCromerZ/Clang/releases/download/13.0.1-20230207-release/Clang-13.0.1-20230207.tar.gz"
+        mkdir clang
+        tar -xf Clang-13.0.1.tar.gz -C clang/
+
+    - name: Download AnyKernel3
+      run: |
+        git clone --depth=1 -b ${{ env.ANYKERNEL_BRANCH }} ${{ env.ANYKERNEL_REPO }} AnyKernel3
+        
+    - name: Get Build Time
+      id: get_time
+      run: echo "TIME=$(date +%Y.%m.%d-%H%M)" >> $GITHUB_OUTPUT
+    
+    - name: Build Kernel
+      run: |
+        export PATH=$(pwd)/clang/bin:$PATH
+        export ARCH=arm64
+        export SUBARCH=arm64
+        export KBUILD_BUILD_USER="dain09"
+        export KBUILD_BUILD_HOST="ubuntu"
+        export CROSS_COMPILE=aarch64-linux-gnu-
+        export CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+
+        make O=out ${{ env.KERNEL_DEFCONFIG }}
+        make O=out -j$(nproc --all) \
+                    CC="ccache clang" \
+                    LD=ld.lld \
+                    AR=llvm-ar \
+                    NM=llvm-nm \
+                    OBJCOPY=llvm-objcopy \
+                    OBJDUMP=llvm-objdump \
+                    STRIP=llvm-strip
+
+    - name: Patch KPM if enabled
+      run: |
+        OUT_DIR="out"
+        KERNEL_IMAGE_DIR="$OUT_DIR/arch/arm64/boot"
+
+        if grep -q "^CONFIG_KPM=y" "$OUT_DIR/.config"; then
+            cd "$KERNEL_IMAGE_DIR"
+            PATCH_URL="https://github.com/SukiSU-Ultra/SukiSU_KernelPatch_patch/releases/latest/download/patch_linux"
+            curl -L -o patch_linux "$PATCH_URL"
+            chmod +x patch_linux
+            ./patch_linux
+
+            rm -f Image Image.gz-dtb
+            mv oImage Image
+            gzip -c Image > Image.gz
+            cat Image.gz dts/*/*.dtb > Image.gz-dtb
+            cd -
+            echo "✅ KPM patch applied successfully."
+        else
+            echo "KPM not enabled in config, skipping patch."
+        fi
+
+    - name: Copy Kernel Image to AnyKernel3
+      run: |
+        cp out/arch/arm64/boot/Image.gz-dtb AnyKernel3/
+
+    - name: Package Kernel into Flashable Zip
+      run: |
+        cd AnyKernel3
+        ZIP_NAME="Khaenriah-SukiSU-Susfs-1.5.11-Kernel-RMX1971-${{ steps.get_time.outputs.TIME }}.zip"
+        zip -r9 ../$ZIP_NAME ./*
+        cd ..
+        # Store ZIP_NAME for the next step
+        echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
+
+    - name: Upload Artifact and Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: "Khaenriah-Kernel-v1.0-${{ steps.get_time.outputs.TIME }}"
+        name: "Khaenriah Kernel | RMX1971 | ${{ steps.get_time.outputs.TIME }}"
+        body: |
+          **Performance is going up! 📈**
+
+          Khaenriah Kernel release for RMX1971.
+          Flash and get ready for the gains!
+
+          *Not a financial advice.*
+        files: ${{ env.ZIP_NAME }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
