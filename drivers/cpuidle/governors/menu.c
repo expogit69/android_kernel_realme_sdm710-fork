@@ -303,16 +303,13 @@ static int menu_select(struct cpuidle_driver *drv, struct cpuidle_device *dev)
 	get_iowait_load(&nr_iowaiters, &cpu_load);
 	data->bucket = which_bucket(data->next_timer_us, nr_iowaiters);
 
-	/*
-	 * Force the result of multiplication to be 64 bits even if both
-	 * operands are 32 bits.
-	 * Make sure to round up for half microseconds.
-	 */
-	data->predicted_us = DIV_ROUND_CLOSEST_ULL((uint64_t)data->next_timer_us *
-					 data->correction_factor[data->bucket],
-					 RESOLUTION * DECAY);
+	/* Khaenriah Tweak: Ignore correction factor for more aggressive deep sleep */
+	data->predicted_us = data->next_timer_us;
 
-	expected_interval = get_typical_interval(data);
+	/* Khaenriah Tweak: Force a higher expected interval to promote deeper sleep */
+	expected_interval = 20000000;
+
+	expected_interval = min(expected_interval, get_typical_interval(data));
 	expected_interval = min(expected_interval, data->next_timer_us);
 
 	if (CPUIDLE_DRIVER_STATE_START > 0) {

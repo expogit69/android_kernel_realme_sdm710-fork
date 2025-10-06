@@ -166,6 +166,13 @@ __read_mostly unsigned int sysctl_sched_ravg_hist_size = 5;
 
 static __read_mostly unsigned int sched_io_is_busy = 1;
 
+/*
+ * Utilization thresholds for migrating tasks between CPUs in a cluster
+ * Lowered for better performance by migrating tasks to big cores earlier.
+ */
+unsigned int sysctl_sched_upmigrate = 70;
+unsigned int sysctl_sched_downmigrate = 55;
+
 __read_mostly unsigned int sched_window_stats_policy =
 	WINDOW_STATS_MAX_RECENT_AVG;
 __read_mostly unsigned int sysctl_sched_window_stats_policy =
