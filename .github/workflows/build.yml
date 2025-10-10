@@ -7,6 +7,8 @@ jobs:
   build:
     name: Building Khaenriah Kernel for RMX1971
     runs-on: ubuntu-22.04
+    permissions:
+      contents: write
     env:
       TZ: Africa/Cairo
       CCACHE_COMPILERCHECK: "%compiler% -dumpmachine; %compiler% -dumpversion"
@@ -102,12 +104,12 @@ jobs:
         ZIP_NAME="Khaenriah-SukiSU-Susfs-1.5.11-Kernel-RMX1971-${{ steps.get_time.outputs.TIME }}.zip"
         zip -r9 ../$ZIP_NAME ./*
         cd ..
-        # Store ZIP_NAME for the next step
         echo "ZIP_NAME=$ZIP_NAME" >> $GITHUB_ENV
 
     - name: Upload Artifact and Create Release
       uses: softprops/action-gh-release@v2
       with:
+        token: ${{ secrets.GITHUB_TOKEN }}
         tag_name: "Khaenriah-Kernel-v1.0-${{ steps.get_time.outputs.TIME }}"
         name: "Khaenriah Kernel | RMX1971 | ${{ steps.get_time.outputs.TIME }}"
         body: |
@@ -118,5 +120,3 @@ jobs:
 
           *Not a financial advice.*
         files: ${{ env.ZIP_NAME }}
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
