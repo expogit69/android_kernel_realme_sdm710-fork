@@ -192,7 +192,7 @@ FORCE_INLINE int LZ4_decompress_unsafe_generic(
 			}
 			if ((size_t)(oend - op) < ll)
 				return -1; /* output buffer overflow */
-				memmove(op, ip,
+			memmove(op, ip,
 				    ll); /* support in-place decompression */
 			op += ll;
 			ip += ll;
@@ -527,7 +527,7 @@ __LZ4_decompress_generic(const char *const src, char *const dst, const BYTE * ip
 
 				if (length <= (size_t)(lowPrefix - match)) {
 					/* match fits entirely within external dictionary : just copy */
-					LZ4_memmove(op,
+					memmove(op,
 						    dictEnd -
 							    (lowPrefix - match),
 						    length);
@@ -710,7 +710,7 @@ safe_literal_copy:
 						goto _output_error;
 					}
 				}
-				LZ4_memmove(
+				memmove(
 					op, ip,
 					length); /* supports overlapping memory regions, for in-place decompression scenarios */
 				ip += length;
@@ -775,7 +775,7 @@ safe_match_copy:
 
 				if (length <= (size_t)(lowPrefix - match)) {
 					/* match fits entirely within external dictionary : just copy */
-					LZ4_memmove(op,
+					memmove(op,
 						    dictEnd -
 							    (lowPrefix - match),
 						    length);
